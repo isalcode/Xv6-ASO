@@ -68,19 +68,39 @@ sys_dup(void)
 
 int
 sys_dup2(void){
-  //argfd(0, &fd_old, &f_old) //recupero oldfd
-  //argint(1, &newfd) //recupero newfd
-  //Comprueba que newfd esta entre 0 y 256
 
+  struct file *f_old;
+  struct file *f_new;
+  int fd_old, fd_new;
+
+  //recupero oldfd
+  if(argfd(0, &fd_old, &f_old) < 0){
+    return -1;
+  } 
+  //recupero newfd con argint porque no sabemos si va a
+  //apuntar a null o no
+  if(argint(1, &fd_new) < 0){
+    return -1;
+  }
+  //al haberlo recuperado con argint hay que comprobar
+  //que no se salga de los límites de los descriptores
+  //de fichero
+  if(fd_new < 0 || fd_new >= NOFILE){
+    return -1;
+  }
   //si oldfd == newfd return newfd;
-
-  //f_new = myproc()->ofile[newfd];
-  //if (f_new != 0)
-  //  fileclose(f_new)
-
-  //
-  //myproc()->ofile[newfd] = f_old;
-  //return newfd
+  if(fd_old == fd_new){
+    return fd_new;
+  }
+  //Comprobamos si apunta a algo o no
+  f_new = myproc()->ofile[fd_new];
+  if(f_new != 0){
+    fileclose(f_new);
+  }
+  //hacemos que apunten a lo mismo
+  myproc()->ofile[fd_new] = f_old;
+  filedup(f_old);
+  return fd_new;
 }
 
 int
