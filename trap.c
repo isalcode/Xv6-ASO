@@ -80,20 +80,38 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    
-    //Comprobaciones de seguridad
+    uint va = rcr2(); // Obtiene la dirección 
+    struct proc *p = myproc();
 
     //if rcr2() > myproc() -> sz: no se hace el mapeo
+    if(va >= p->sz){
+        p->killed = 1;
+        break;
+      }
     // if rcr2() > KERNBASE -> no se hace el mapeo, print y todo eso
+    if(va >= KERNBASE){
+        p->killed = 1;
+        break;
+      }
     // if rcr2() esta en una pagina no tengo permisos tf->err explorar, si el error es por permisos u know
+    if(tf->err & 0x1){ 
+      p->killed = 1;
+      break;
+    }
     // myproc()->killed = 1 en los casos de error 
 
     char * mem;
     mem = kalloc();
+    if(mem == 0){
+      p->killed = 1;
+      break;
+    }
 
     memset(mem, 0, PGSIZE);
-    //mappages(//tablapag, direccion virtual, tamaño, direccion fisica, permisos) if < 0 killed = 1, kfree(mem);
-    mappages(myproc()->pgdir, (char*)PGROUNDDOWN(rcr2()), PGSIZE, V2P(mem), PTE_W | PTE_U);
+    if(mappages(myproc()->pgdir, (char*)PGROUNDDOWN(rcr2()), PGSIZE, V2P(mem), PTE_W | PTE_U) < 0){
+      myproc()->killed = 1;
+      kfree(mem);
+    }
     break;
 
   //PAGEBREAK: 13

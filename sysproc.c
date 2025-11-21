@@ -60,7 +60,8 @@ sys_sbrk(void)
     return -1;
   addr = myproc()->sz;
   if(n > 0){
-    //Comprobaciones de seguridad
+    if(addr + n >= KERNBASE)
+      return -1;
     myproc() -> sz += n;
   } else {
     if(growproc(n) < 0)
