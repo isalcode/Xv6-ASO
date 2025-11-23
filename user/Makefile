@@ -14,6 +14,11 @@ UPROGS=\
 	rm\
 	sh\
 	stressfs\
+	tsbrk1\
+	tsbrk2\
+	tsbrk3\
+	tsbrk4\
+	tsbrk5\
 	usertests\
 	wc\
 	zombie\
