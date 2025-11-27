@@ -7,10 +7,17 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define NUMBER_OF_QUEUES 10
+#define INITIAL_PRIORITY 5
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct proc *inicioCola[NUMBER_OF_QUEUES]; // Array de punteros al PRIMER proceso de cada cola
+  struct proc *finalCola[NUMBER_OF_QUEUES]; // Array de punteros al ÚLTIMO proceso (Opcional pero recomendado)
 } ptable;
+
+
 
 static struct proc *initproc;
 
@@ -78,16 +85,21 @@ allocproc(void)
 
   acquire(&ptable.lock);
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       goto found;
 
+  }
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+
+  //inicialización de prioridad y puntero
+  p->prio = INITIAL_PRIORITY;
+  p->sig = 0;
 
   release(&ptable.lock);
 
@@ -111,6 +123,42 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+  return p;
+}
+
+//función auxiliar para encolar
+void
+addToQueue(struct proc* p){
+  int prioridad = p->prio;
+  p->sig = 0;
+  //si la cola está vacía
+  if(ptable.inicioCola[prioridad] == 0){
+    ptable.inicioCola[prioridad] = p;
+    ptable.finalCola[prioridad] = p;
+  //si hay elementos en la cola
+  } else {
+    ptable.finalCola[prioridad]->sig = p;
+    ptable.finalCola[prioridad] = p;
+  }
+}
+
+struct proc*
+popFromQueue(int prio){
+  struct proc* p = ptable.inicioCola[prio];
+  //si la cola estaba vacía
+  if(p == 0){
+    return 0;
+  }
+
+  ptable.inicioCola[prio] = p->sig;
+
+  //si la cola se ha quedado vacía
+  if(ptable.inicioCola[prio] == 0){
+    ptable.finalCola[prio] = 0;
+  }
+  
+  p->sig = 0;
 
   return p;
 }
@@ -149,6 +197,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  addToQueue(p);
 
   release(&ptable.lock);
 }
@@ -215,6 +264,8 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+
+  addToQueue(np);
 
   release(&ptable.lock);
 
@@ -339,23 +390,26 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-
+    for(int i = 0; i < NUMBER_OF_QUEUES; i++){
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+      if(ptable.inicioCola[i] != 0){
+        p = popFromQueue(i);
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        break; //para volver a la prioridad 0
+      }
+      
     }
     release(&ptable.lock);
 
@@ -394,6 +448,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+  addToQueue(myproc());
   sched();
   release(&ptable.lock);
 }
@@ -467,8 +522,12 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan){
       p->state = RUNNABLE;
+      addToQueue(p);
+    }
+      
+      
 }
 
 // Wake up all processes sleeping on chan.
@@ -493,8 +552,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING){
         p->state = RUNNABLE;
+        addToQueue(p);
+      }
       release(&ptable.lock);
       return 0;
     }
