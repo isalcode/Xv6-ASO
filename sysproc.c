@@ -118,3 +118,24 @@ int sys_date (void)
    //2. Llama a cmostime() para rellenarlo
    //3. return 0
 }
+
+int
+sys_getprio(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return getprio(pid);
+}
+
+int
+sys_setprio(void)
+{
+  int pid;
+  int prio;
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argint(1, &prio) < 0)
+    return -1;
+  return setprio(pid, prio);
+}

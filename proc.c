@@ -600,3 +600,73 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+// Obtiene la prioridad de un proceso dado su PID
+// Devuelve -1 si el proceso no existe
+int
+getprio(int pid)
+{
+  struct proc *p;
+  int prio = -1;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid && p->state != UNUSED && p->state != ZOMBIE){
+      prio = p->prio;
+      break;
+    }
+  }
+  release(&ptable.lock);
+  return prio;
+}
+
+// Establece la prioridad de un proceso dado su PID
+// Devuelve 0 si tiene éxito, -1 si hay error
+int
+setprio(int pid, int prio)
+{
+  struct proc *p;
+  struct proc *curr, *prev;
+  int oldprio;
+
+  // Validar rango de prioridad
+  if(prio < 0 || prio >= NUMBER_OF_QUEUES)
+    return -1;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid && p->state != UNUSED && p->state != ZOMBIE){
+      oldprio = p->prio;
+      p->prio = prio;
+      // Solo si está RUNNABLE hay que moverlo entre colas y su prioridad ha cambiado
+      if(p->state == RUNNABLE && oldprio != prio){
+        // Eliminar de la cola antigua
+        if(ptable.inicioCola[oldprio] == p){
+          ptable.inicioCola[oldprio] = p->sig;
+          if(ptable.inicioCola[oldprio] == 0)
+            ptable.finalCola[oldprio] = 0;
+        } else {
+          prev = ptable.inicioCola[oldprio];
+          curr = prev->sig;
+          while(curr != 0){
+            if(curr == p){
+              prev->sig = curr->sig;
+              if(ptable.finalCola[oldprio] == p)
+                ptable.finalCola[oldprio] = prev;
+              break;
+            }
+            prev = curr;
+            curr = curr->sig;
+          }
+        }
+        p->sig = 0;
+        // Añadir a la nueva cola
+        addToQueue(p);
+      }
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
