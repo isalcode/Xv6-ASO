@@ -64,8 +64,22 @@ Pasos para modificar el scheduler y crear la estructura de colas:
 
 7. Para cambiar el scheduler, ahora lo que tiene que recorrer son las colas, no la ptable, y cuando encuentre una (de mayor prioridad a menor) con un proceso esperando lo saca (popFromQueue) y le da la cpu. Luego, cuando este proceso deja de tener la cpu se empieza a iterar desde la cola 0, la de máxima prioridad. **(proc.c)**
 
-Pasos para setPrio:
+Pasos para getPrio y setPrio:
 
-Pasos para getPrio:
+1. Añadimos los números de syscall SYS_getprio (24) y SYS_setprio (25). **(syscall.h)**
+
+2. Implementamos sys_getprio y sys_setprio que recogen los argumentos con argint y llaman a las funciones del kernel. **(sysproc.c)**
+
+3. Añadimos las declaraciones extern y las entradas en la tabla de syscalls. **(syscall.c)**
+
+4. Declaramos getprio y setprio en las definiciones del kernel. **(defs.h)**
+
+5. Implementamos getprio(pid) que recorre la ptable buscando el proceso por PID y devuelve su prioridad, o -1 si no existe. **(proc.c)**
+
+6. Implementamos setprio(pid, prio) que valida el rango de prioridad (0-9), busca el proceso por PID, actualiza su prioridad y si está RUNNABLE lo mueve de su cola antigua a la nueva. **(proc.c)**
+
+7. Añadimos los stubs SYSCALL(getprio) y SYSCALL(setprio) para el espacio de usuario. **(user/usys.S)**
+
+8. Declaramos las funciones getprio y setprio para programas de usuario. **(user/user.h)**
 
 
