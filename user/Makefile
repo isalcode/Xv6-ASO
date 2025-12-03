@@ -14,6 +14,7 @@ UPROGS=\
 	rm\
 	sh\
 	stressfs\
+	tprio\
 	tsbrk1\
 	tsbrk2\
 	tsbrk3\

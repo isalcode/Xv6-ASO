@@ -3,12 +3,16 @@
 #define WIFSIGNALED(status) (((status) & 0x7f) != 0)
 #define WEXITTRAP(status) (((status) & 0x7f) - 1)
 
+#define HIGHEST_PRIO 0
+#define NORM_PRIO 5
+#define LOWEST_PRIO 9
+
 struct stat;
 struct rtcdate;
 
 // system calls
 extern int fork(void);
-extern int exit(int) __attribute__((noreturn));
+extern int exit() __attribute__((noreturn));
 extern int wait(int*);
 extern int pipe(int*);
 extern int write(int, const void*, int);
