@@ -9,10 +9,25 @@
 ## Ejercicio 1: getDate
 
 (Ejercicio guiado en clase)
+1. Se añade *date* a la variable UPROGS del Makefile dentro de la carpeta user.
+
+2. Se añade el fichero date.c, que será el programa de usuario que llamará a la nueva llamada al sistema. Se proporciona el código en la presentación.
+
+3. En **syscall.h** se le da un número a la llamada.
+
+4. En **user/usys.S** se añade la llamada *date*.
+
+5. En **syscall.c** añadimos la definición de la función *sys_date()*.
+
+6. Se implementa la llamada *sys_date()* en **sysproc.c**.
 
 
 
 ## Ejercicio 2: dup2
+
+Para la creación de esta llamada al sistema hemos seguido los pasos del ejercicio 1 pero aplicados a esta función. En este caso la implementación de la función se hace en **sysfile.c**, justo debajo de *sys_dup()*. La implementación de *sys_dup2()* consiste en recuperar el descriptor antiguo de fichero con argfd y el nuevo con argint, ya que no sabemos si este descriptor está libre o apunta ya a algo. Se hacen las respectivas comprobaciones y, en el caso de que apuntara a algo, este descriptor se cerraría y haríamos que apuntase a lo mismo que f_old.
+
+Otra modificación que pedía el ejercicio era la del shell, en la función *runcmd* en el fichero **sh.c**. Concretamente, en el caso de PIPE, donde antes se usaba dup y ahora teníamos que pasar a usar dup2, por lo que ya no hace falta cerrar los descriptores de fichero antes de hacer dup2, ya que la propia función lo hace si es necesario.
 
 ## Ejercicio 3: exit y wait
 
